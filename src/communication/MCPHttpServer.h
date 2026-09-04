@@ -111,7 +111,7 @@ private:
     void CleanupFinishedClientTasks();
 
     std::string m_host;
-    int m_port;
+    int m_port = 0;
     SOCKET m_listenSocket;
     std::atomic<bool> m_running;
     std::thread m_serverThread;

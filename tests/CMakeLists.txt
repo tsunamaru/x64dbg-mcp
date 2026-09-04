@@ -25,6 +25,16 @@ target_include_directories(stack_range PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_options(stack_range PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 add_test(NAME stack_range COMMAND stack_range)
 
+add_executable(dump_policy DumpPolicyTests.cpp)
+target_include_directories(dump_policy PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_options(dump_policy PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+add_test(NAME dump_policy COMMAND dump_policy)
+
+add_executable(sparse_memory_reader SparseMemoryReaderTests.cpp)
+target_include_directories(sparse_memory_reader PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_options(sparse_memory_reader PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+add_test(NAME sparse_memory_reader COMMAND sparse_memory_reader)
+
 add_executable(script_command_policy ScriptCommandPolicyTests.cpp)
 target_include_directories(script_command_policy PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_options(script_command_policy PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)

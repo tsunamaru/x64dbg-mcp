@@ -3,9 +3,11 @@
 #include "../core/Logger.h"
 #include "../core/Exceptions.h"
 #include "../core/TargetValueValidator.h"
+#include "../core/SparseMemoryReader.h"
 #include "../utils/StringUtils.h"
 #include "../core/X64DBGBridge.h"
 #include <algorithm>
+#include <utility>
 
 namespace MCP {
 
@@ -91,6 +93,51 @@ std::vector<uint8_t> MemoryManager::Read(uint64_t address, size_t size) {
     }
     
     return buffer;
+}
+
+std::vector<uint8_t> MemoryManager::ReadZeroFilled(uint64_t address, size_t size) {
+    if (!TargetValueValidator::FitsAddress(address)) {
+        throw InvalidAddressException("Address exceeds target architecture range: " +
+                                      StringUtils::FormatAddress(address));
+    }
+    if (!DebugController::Instance().IsDebugging()) {
+        throw DebuggerNotPausedException();
+    }
+    if (size == 0) {
+        throw InvalidSizeException("Size cannot be zero");
+    }
+    if (size > MAX_READ_SIZE) {
+        throw InvalidSizeException("Read size exceeds maximum: " +
+                                   std::to_string(MAX_READ_SIZE));
+    }
+    if (!TargetValueValidator::FitsAddressRange(address, size)) {
+        throw InvalidAddressException("Memory range exceeds target architecture range: " +
+                                      StringUtils::FormatAddress(address));
+    }
+
+    constexpr size_t kPageSize = 4096;
+    auto result = SparseMemoryReader::ReadZeroFilled(
+        address,
+        size,
+        kPageSize,
+        [](uint64_t currentAddress, uint8_t* destination, size_t chunkSize) {
+            return DbgMemRead(static_cast<duint>(currentAddress), destination, chunkSize);
+        });
+
+    if (result.bytesRead == 0) {
+        throw MCPException("Failed to read memory at: " +
+                           StringUtils::FormatAddress(address));
+    }
+    if (result.failedChunks != 0) {
+        Logger::Warning(
+            "Zero-filled {} unreadable bytes across {} page chunks while reading {} bytes from 0x{:X}",
+            size - result.bytesRead,
+            result.failedChunks,
+            size,
+            address);
+    }
+
+    return std::move(result.bytes);
 }
 
 size_t MemoryManager::Write(uint64_t address, const std::vector<uint8_t>& data) {

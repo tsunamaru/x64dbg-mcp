@@ -8,6 +8,7 @@
 #include "../business/DebugController.h"
 #include <_scriptapi_function.h>
 #include <bridgelist.h>
+#include <memory>
 
 namespace MCP {
 
@@ -27,13 +28,20 @@ nlohmann::json AnalysisHandler::XrefGet(const nlohmann::json& params) {
     XREF_INFO info;
     memset(&info, 0, sizeof(info));
     bool found = DbgXrefGet(static_cast<duint>(addr), &info);
+    std::unique_ptr<XREF_RECORD, decltype(&BridgeFree)> references(
+        info.references, &BridgeFree);
 
     nlohmann::json refs = nlohmann::json::array();
     if (found && info.refcount > 0) {
+        if (!references) {
+            throw MCPException("x64dbg returned an invalid xref list");
+        }
         for (duint i = 0; i < info.refcount; ++i) {
+            const XREF_RECORD& reference = references.get()[i];
             nlohmann::json entry;
-            entry["address"] = StringUtils::FormatAddress(static_cast<uint64_t>(info.references[i].addr));
-            switch (info.references[i].type) {
+            entry["address"] = StringUtils::FormatAddress(
+                static_cast<uint64_t>(reference.addr));
+            switch (reference.type) {
                 case XREF_CALL: entry["type"] = "call"; break;
                 case XREF_JMP:  entry["type"] = "jmp";  break;
                 case XREF_DATA: entry["type"] = "data"; break;
@@ -41,8 +49,6 @@ nlohmann::json AnalysisHandler::XrefGet(const nlohmann::json& params) {
             }
             refs.push_back(entry);
         }
-        if (info.references)
-            BridgeFree(info.references);
     }
 
     nlohmann::json result;

@@ -4,6 +4,7 @@
 #include "MemoryManager.h"
 #include "../core/Logger.h"
 #include "../core/RequestValidator.h"
+#include "../core/DumpPolicy.h"
 #include "../core/Exceptions.h"
 #include "../utils/StringUtils.h"
 #include "../core/X64DBGBridge.h"
@@ -537,6 +538,10 @@ DumpResult DumpManager::DumpModule(
         if (moduleSize == 0) {
             throw MCPException("Failed to get module size");
         }
+        if (moduleSize > std::numeric_limits<size_t>::max()) {
+            throw InvalidSizeException("Module is too large for this build");
+        }
+        const size_t imageSize = static_cast<size_t>(moduleSize);
         
         Logger::Info("Dumping module at {}, size: {} bytes, EP: {}",
                     StringUtils::FormatAddress(moduleBase),
@@ -553,8 +558,13 @@ DumpResult DumpManager::DumpModule(
             options.forcedOEP.has_value() && options.forcedOEP.value() != entryPoint;
 
         // If still packed and no resolved OEP is provided, return a runnable baseline by copying
-        // the original image instead of writing unstable runtime memory state.
-        if (isPackedImage && !options.autoDetectOEP && !hasResolvedOEP &&
+        // the original image instead of writing unstable runtime memory state. A full-image request
+        // must bypass this fallback so its exact-size, zero-filled contract remains intact.
+        if (DumpPolicy::ShouldTryPackedOriginalFallback(
+                isPackedImage,
+                options.autoDetectOEP,
+                hasResolvedOEP,
+                options.dumpFullImage) &&
             !modulePath.empty() && std::filesystem::exists(moduleFsPath)) {
             updateProgress(DumpProgress::Stage::Preparing, 5,
                            "Packed module fallback: copying original image");
@@ -588,17 +598,13 @@ DumpResult DumpManager::DumpModule(
         
         updateProgress(DumpProgress::Stage::ReadingMemory, 10, "Reading module memory");
         
-        // 璇诲彇鏁翠釜妯″潡鍐呭瓨
+        // Read the complete module range when requested. Unreadable or
+        // uncommitted pages remain zero-filled so later readable pages retain
+        // their original RVAs in the image.
         auto& memMgr = MemoryManager::Instance();
-        std::vector<uint8_t> buffer;
-        
-        if (options.dumpFullImage) {
-            // 鎸塒E鏂囦欢澶у皬dump
-            buffer = memMgr.Read(moduleBase, moduleSize);
-        } else {
-            // 鍙猟ump宸叉彁浜ょ殑鍐呭瓨椤?
-            buffer = memMgr.Read(moduleBase, moduleSize);
-        }
+        std::vector<uint8_t> buffer = options.dumpFullImage
+            ? memMgr.ReadZeroFilled(moduleBase, imageSize)
+            : memMgr.Read(moduleBase, imageSize);
         
         result.dumpedSize = buffer.size();
         result.originalEP = entryPoint;

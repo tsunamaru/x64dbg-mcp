@@ -17,8 +17,6 @@ StackManager& StackManager::Instance() {
 }
 
 std::vector<StackFrame> StackManager::GetStackTrace(size_t maxDepth) {
-    std::vector<StackFrame> frames;
-    
     // 检查调试器状态
     if (!DbgIsDebugging()) {
         throw DebuggerNotRunningException("Debugger is not debugging");
@@ -60,7 +58,6 @@ std::vector<StackFrame> StackManager::GetStackTraceManual(size_t maxDepth) {
     std::vector<StackFrame> frames;
     
     auto& regMgr = RegisterManager::Instance();
-    auto& symResolver = SymbolResolver::Instance();
     
     // 根据架构获取正确的寄存器
 #ifdef XDBG_ARCH_X64
