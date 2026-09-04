@@ -35,6 +35,11 @@ public:
      * @brief register.get_batch - 批量读取寄存器
      */
     static json GetBatch(const json& params);
+
+    /**
+     * @brief register.get_vector - read SSE / AVX registers (xmm, ymm)
+     */
+    static json GetVector(const json& params);
 };
 
 } // namespace MCP

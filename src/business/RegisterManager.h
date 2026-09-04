@@ -17,6 +17,15 @@ struct RegisterInfo {
 };
 
 /**
+ * @brief SSE / AVX vector register contents.
+ */
+struct VectorRegisterInfo {
+    std::string name;
+    size_t size = 0;             // bytes: 16 for XMM, 32 for YMM
+    std::vector<uint8_t> bytes;  // little-endian, as stored
+};
+
+/**
  * @brief 寄存器管理器
  * 封装 x64dbg 寄存器访问 API
  */
@@ -71,6 +80,28 @@ public:
      * @return 是否有效
      */
     bool IsValidRegister(const std::string& name) const;
+
+    /**
+     * @brief Is this the name of an SSE / AVX vector register?
+     */
+    bool IsVectorRegister(const std::string& name) const;
+
+    /**
+     * @brief Read one vector register (xmm0.., ymm0..).
+     * @throws InvalidRegisterException on a bad name or index
+     * @throws DebuggerNotPausedException when the debuggee is running
+     */
+    VectorRegisterInfo GetVectorRegister(const std::string& name);
+
+    /**
+     * @brief Every vector register name this build can read.
+     */
+    std::vector<std::string> VectorRegisterNames() const;
+
+    /**
+     * @brief How many XMM/YMM registers this architecture has (8 or 16).
+     */
+    static size_t VectorRegisterCount();
     
     /**
      * @brief 获取寄存器大小（字节数）
@@ -91,6 +122,11 @@ private:
     
     void InitializeRegisterMap();
     std::string NormalizeName(const std::string& name) const;
+
+    static bool ParseVectorName(const std::string& name, char& kind,
+                                size_t& index);
+
+    uint64_t GetMxCsr();
     
     // 寄存器名称到大小的映射
     std::unordered_map<std::string, size_t> m_registerSizes;

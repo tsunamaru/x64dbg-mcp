@@ -1,4 +1,6 @@
 #include "RegisterManager.h"
+#include <cstring>
+#include <string>
 #include "DebugController.h"
 #include "../core/Logger.h"
 #include "../core/Exceptions.h"
@@ -63,7 +65,8 @@ void RegisterManager::InitializeRegisterMap() {
     m_registerSizes["cip"] = 4;  // 当前指令指针
     m_registerSizes["csp"] = 4;  // 当前栈指针
 #endif
-    
+    m_registerSizes["mxcsr"] = 4;
+
     // 段寄存器（x86 和 x64 通用）
     m_registerSizes["cs"] = 2;
     m_registerSizes["ds"] = 2;
@@ -80,10 +83,19 @@ uint64_t RegisterManager::GetRegister(const std::string& name) {
     
     std::string normalizedName = NormalizeName(name);
     
+    if (IsVectorRegister(normalizedName)) {
+        throw InvalidRegisterException(
+            normalizedName + " is a vector register; use register_get_vector");
+    }
+
     if (!IsValidRegister(normalizedName)) {
         throw InvalidRegisterException("Invalid register name: " + name);
     }
-    
+
+    if (normalizedName == "mxcsr") {
+        return GetMxCsr();
+    }
+
     // 使用 x64dbg API 读取寄存器
     uint64_t value = DbgValFromString(normalizedName.c_str());
     
@@ -109,8 +121,13 @@ bool RegisterManager::SetRegister(const std::string& name, uint64_t value) {
         throw DebuggerNotPausedException();
     }
 
+    // x64dbg addresses FPU scalar values through an underscore-prefixed name.
+    const std::string sdkName = normalizedName == "mxcsr"
+        ? "_MxCsr"
+        : normalizedName;
+
     // 使用 x64dbg API 设置寄存器
-    bool success = DbgValToString(normalizedName.c_str(), static_cast<duint>(value));
+    bool success = DbgValToString(sdkName.c_str(), static_cast<duint>(value));
     
     if (success) {
         Logger::Debug("Set register {} = 0x{:X}", normalizedName, value);
@@ -262,6 +279,120 @@ size_t RegisterManager::GetRegisterSize(const std::string& name) const {
 
 std::string RegisterManager::NormalizeName(const std::string& name) const {
     return StringUtils::ToLower(StringUtils::Trim(name));
+}
+
+size_t RegisterManager::VectorRegisterCount() {
+#ifdef XDBG_ARCH_X64
+    return 16;
+#else
+    return 8;
+#endif
+}
+
+bool RegisterManager::ParseVectorName(const std::string& name, char& kind,
+                                      size_t& index) {
+    if (name.size() < 4)
+        return false;
+    if (name.compare(1, 2, "mm") != 0)
+        return false;
+    if (name[0] != 'x' && name[0] != 'y')
+        return false;
+
+    const std::string digits = name.substr(3);
+    if (digits.empty() || digits.size() > 2)
+        return false;
+    if (digits.size() > 1 && digits[0] == '0')
+        return false;
+    for (char c : digits) {
+        if (c < '0' || c > '9')
+            return false;
+    }
+
+    kind = name[0];
+    index = static_cast<size_t>(std::stoul(digits));
+    return true;
+}
+
+bool RegisterManager::IsVectorRegister(const std::string& name) const {
+    char kind = 0;
+    size_t index = 0;
+    if (!ParseVectorName(NormalizeName(name), kind, index))
+        return false;
+    return index < VectorRegisterCount();
+}
+
+std::vector<std::string> RegisterManager::VectorRegisterNames() const {
+    std::vector<std::string> names;
+    const size_t count = VectorRegisterCount();
+    names.reserve(count * 2);
+    for (size_t i = 0; i < count; ++i)
+        names.push_back("xmm" + std::to_string(i));
+    for (size_t i = 0; i < count; ++i)
+        names.push_back("ymm" + std::to_string(i));
+    return names;
+}
+
+uint64_t RegisterManager::GetMxCsr() {
+    if (!DebugController::Instance().IsPaused()) {
+        throw DebuggerNotPausedException();
+    }
+#ifdef XDBG_SDK_AVAILABLE
+    REGDUMP regDump = {};
+    if (!DbgGetRegDumpEx(reinterpret_cast<REGDUMP_AVX512*>(&regDump),
+                         sizeof(REGDUMP))) {
+        throw InvalidRegisterException("register dump unavailable");
+    }
+    return static_cast<uint64_t>(regDump.regcontext.MxCsr);
+#else
+    throw InvalidRegisterException(
+        "mxcsr needs a build with the x64dbg SDK");
+#endif
+}
+
+VectorRegisterInfo RegisterManager::GetVectorRegister(const std::string& name) {
+    if (!DebugController::Instance().IsPaused()) {
+        throw DebuggerNotPausedException();
+    }
+
+    const std::string normalizedName = NormalizeName(name);
+    char kind = 0;
+    size_t index = 0;
+    if (!ParseVectorName(normalizedName, kind, index)) {
+        throw InvalidRegisterException(
+            "Not a vector register name: " + name);
+    }
+    if (index >= VectorRegisterCount()) {
+        throw InvalidRegisterException(
+            "No such vector register: " + normalizedName + "; this build has " +
+            std::to_string(VectorRegisterCount()) + " of each");
+    }
+
+#ifdef XDBG_SDK_AVAILABLE
+    REGDUMP regDump = {};
+    if (!DbgGetRegDumpEx(reinterpret_cast<REGDUMP_AVX512*>(&regDump),
+                         sizeof(REGDUMP))) {
+        throw InvalidRegisterException("register dump unavailable");
+    }
+
+    VectorRegisterInfo info;
+    info.name = normalizedName;
+    const auto& ctx = regDump.regcontext;
+    if (kind == 'x') {
+        info.size = sizeof(ctx.XmmRegisters[index]);
+        info.bytes.resize(info.size);
+        std::memcpy(info.bytes.data(), &ctx.XmmRegisters[index], info.size);
+    } else {
+        info.size = sizeof(ctx.YmmRegisters[index]);
+        info.bytes.resize(info.size);
+        std::memcpy(info.bytes.data(), &ctx.YmmRegisters[index], info.size);
+    }
+
+    Logger::Trace("Read vector register {} ({} bytes)", info.name, info.size);
+    return info;
+#else
+    throw InvalidRegisterException(
+        "Vector registers need a build with the x64dbg SDK");
+#endif
 }
 
 } // namespace MCP

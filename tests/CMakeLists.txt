@@ -25,6 +25,11 @@ target_include_directories(stack_range PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_options(stack_range PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 add_test(NAME stack_range COMMAND stack_range)
 
+add_executable(script_command_policy ScriptCommandPolicyTests.cpp)
+target_include_directories(script_command_policy PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_compile_options(script_command_policy PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+add_test(NAME script_command_policy COMMAND script_command_policy)
+
 add_executable(target_value_validation_x64 TargetValueValidationTests.cpp)
 target_include_directories(target_value_validation_x64 PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(target_value_validation_x64 PRIVATE XDBG_ARCH_X64)

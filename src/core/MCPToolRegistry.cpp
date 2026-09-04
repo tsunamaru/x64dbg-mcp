@@ -297,11 +297,23 @@ void MCPToolRegistry::RegisterDefaultTools() {
         "Read multiple registers at once",
         "register.get_batch",
         {
-            {"names", "array", "Array of register names", true, nullptr, nullptr, 
+            {"names", "array", "Array of register names", true, nullptr, nullptr,
              json{{"type", "string"}}}
         }
     });
-    
+
+    RegisterTool({
+        "register_get_vector",
+        "Read SSE/AVX vector registers (xmm0.., ymm0..)",
+        "register.get_vector",
+        {
+            {"name", "string", "One vector register, e.g. 'xmm0'", false,
+             nullptr, nullptr},
+            {"names", "array", "Several vector registers", false, nullptr,
+             nullptr, json{{"type", "string"}}}
+        }
+    });
+
     // 3. Memory Tools
     RegisterTool({
         "memory_read",
@@ -751,21 +763,23 @@ void MCPToolRegistry::RegisterDefaultTools() {
     // 15. Script Execution Tools
     RegisterTool({
         "script_execute",
-        "Execute single x64dbg/x32dbg script command",
+        "Execute single x64dbg/x32dbg script command. Command queued unless direct=true, queued command always reports success.",
         "script.execute",
         {
-            {"command", "string", "x64dbg/x32dbg command to execute (e.g. 'bp 401000')", true, nullptr, nullptr}
+            {"command", "string", "x64dbg/x32dbg command to execute (e.g. 'bp 401000')", true, nullptr, nullptr},
+            {"direct", "boolean", "Run synchronously and report the command's REAL success. Do not use for run/step/attach or other execution control.", false, false, nullptr}
         }
     });
     
     RegisterTool({
         "script_execute_batch",
-        "Execute multiple x64dbg/x32dbg commands in sequence",
+        "Execute multiple x64dbg/x32dbg commands in sequence. Commands queued unless direct=true, queued command always reports success.",
         "script.execute_batch",
         {
             {"commands", "array", "Array of x64dbg/x32dbg commands", true, nullptr, nullptr,
              json{{"type", "string"}}},
-            {"stop_on_error", "boolean", "Stop execution if a command fails", false, true, nullptr}
+            {"stop_on_error", "boolean", "Stop execution if a command fails", false, true, nullptr},
+            {"direct", "boolean", "Run each command synchronously and report its status.", false, false, nullptr}
         }
     });
     
