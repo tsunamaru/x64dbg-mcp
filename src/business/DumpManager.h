@@ -15,7 +15,7 @@ struct DumpOptions {
     bool removeIntegrityCheck = true; // 移除PE校验和
     bool rebuildPE = true;          // 重建PE头
     bool autoDetectOEP = false;     // 自动检测OEP
-    bool dumpFullImage = false;     // dump完整镜像(包括未映射部分)
+    bool dumpFullImage = false;     // preserve full image size; zero-fill unreadable pages
     std::optional<uint64_t> forcedOEP;
 };
 
@@ -57,9 +57,9 @@ struct DumpResult {
 struct ModuleDumpInfo {
     std::string name;
     std::string path;
-    uint64_t baseAddress;
-    uint64_t size;
-    uint64_t entryPoint;
+    uint64_t baseAddress = 0;
+    uint64_t size = 0;
+    uint64_t entryPoint = 0;
     bool isPacked = false;      // 是否加壳
     std::string packerId;       // 壳类型识别
 };
@@ -68,8 +68,8 @@ struct ModuleDumpInfo {
  * @brief 内存区域Dump信息
  */
 struct MemoryRegionDump {
-    uint64_t address;
-    uint64_t size;
+    uint64_t address = 0;
+    uint64_t size = 0;
     std::string protection;
     std::string type;
     std::string name;           // 相关模块名或描述

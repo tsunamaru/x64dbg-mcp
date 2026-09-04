@@ -43,6 +43,14 @@ public:
      * @return 读取的数据
      */
     std::vector<uint8_t> Read(uint64_t address, size_t size);
+
+    /**
+     * @brief Read an exact-size image, zero-filling unreadable pages
+     * @param address Start address
+     * @param size Requested image size
+     * @return Exactly size bytes when at least one page can be read
+     */
+    std::vector<uint8_t> ReadZeroFilled(uint64_t address, size_t size);
     
     /**
      * @brief 写入内存

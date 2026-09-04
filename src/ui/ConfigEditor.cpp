@@ -198,7 +198,11 @@ INT_PTR CALLBACK ConfigEditor::DialogProc(HWND hwndDlg, UINT message, WPARAM wPa
     case WM_GETMINMAXINFO: {
         auto* info = reinterpret_cast<MINMAXINFO*>(lParam);
         RECT minRect{0, 0, 600, 420};
-        AdjustWindowRectEx(&minRect, GetWindowLongA(hwndDlg, GWL_STYLE), FALSE, GetWindowLongA(hwndDlg, GWL_EXSTYLE));
+        AdjustWindowRectEx(
+            &minRect,
+            static_cast<DWORD>(GetWindowLongPtrA(hwndDlg, GWL_STYLE)),
+            FALSE,
+            static_cast<DWORD>(GetWindowLongPtrA(hwndDlg, GWL_EXSTYLE)));
         info->ptMinTrackSize.x = minRect.right - minRect.left;
         info->ptMinTrackSize.y = minRect.bottom - minRect.top;
         return TRUE;

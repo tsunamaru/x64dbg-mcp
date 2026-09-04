@@ -717,7 +717,7 @@ void MCPToolRegistry::RegisterDefaultTools() {
             {"rebuild_pe", "boolean", "Rebuild PE headers and align sections", false, true, nullptr},
             {"remove_integrity_check", "boolean", "Clear PE checksum", false, true, nullptr},
             {"auto_detect_oep", "boolean", "Try to auto-detect OEP via pattern analysis", false, false, nullptr},
-            {"dump_full_image", "boolean", "Dump full image including non-committed pages", false, false, nullptr}
+            {"dump_full_image", "boolean", "Preserve full image size and zero-fill unreadable pages", false, false, nullptr}
         }
     });
     
