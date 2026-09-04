@@ -73,3 +73,6 @@ docs/Architecture.md
 docs/Extension_Guide.md
 docs/SDK_Integration.md
 docs/Threading_Model.md
+
+.mcp.json
+.pi
