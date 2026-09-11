@@ -29,7 +29,8 @@ cmake --build build_x64 --config Release -j
 For x86, use `-A Win32`, `-DVCPKG_TARGET_TRIPLET=x86-windows`, `-DXDBG_ARCH=x86`.
 
 ### Tests
-No test suite exists yet. CMake conditionally enables tests (`BUILD_TESTS=ON`) if a `tests/` directory is present.
+Configure with `BUILD_TESTS=ON` and run `ctest --test-dir build_x86 -C Release` and `ctest --test-dir build_x64 -C Release`.
+Build and test source changes locally. Ask the owner to deploy new plugin binaries; do not replace installed versions yourself.
 
 ## Architecture overview
 

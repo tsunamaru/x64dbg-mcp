@@ -235,12 +235,14 @@ void MCPToolRegistry::RegisterDefaultTools() {
 
     RegisterTool({
         "debug_init",
-        "Start a new debug session by loading an executable (equivalent to x64dbg/x32dbg's 'Run' button). Works regardless of current debug state — use this to relaunch the target after a crash, exit, or manual stop. If 'path' is omitted, falls back to the most recently observed debuggee path.",
+        "Start a debug session through synchronous init. Process creation is acknowledged, but poll debug_get_state for the initial pause. Optional environment overrides require an idle debugger and exclusive GUI/plugin launching; parent values are restored after creation. If path is omitted, reuse the last target.",
         "debug.init",
         {
             {"path", "string", "Absolute path to the executable to debug. Optional — if omitted, the last observed debuggee path is reused.", false, "", nullptr},
             {"arguments", "string", "Command-line arguments passed to the debuggee (optional).", false, "", nullptr},
-            {"current_dir", "string", "Working directory for the debuggee (optional).", false, "", nullptr}
+            {"current_dir", "string", "Working directory for the debuggee (optional).", false, "", nullptr},
+            {"environment", "object", "Per-launch UTF-8 environment overrides: string sets a value (including empty), null removes it. Temporary debugger-process values are restored after synchronous creation. Do not launch concurrently through the GUI or other plugins.", false, nullptr, nullptr},
+            {"environment_clear_prefixes", "array", "Remove inherited variables with these case-insensitive prefixes before applying explicit overrides. Restore their previous values after creation.", false, nullptr, nullptr, {{"type", "string"}}}
         }
     });
 

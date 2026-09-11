@@ -94,3 +94,12 @@ target_compile_definitions(breakpoint_address_entry_x86 PRIVATE XDBG_ARCH_X86 NO
 target_compile_options(breakpoint_address_entry_x86 PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 target_link_libraries(breakpoint_address_entry_x86 PRIVATE nlohmann_json::nlohmann_json)
 add_test(NAME breakpoint_address_entry_x86 COMMAND breakpoint_address_entry_x86)
+
+if(WIN32)
+    add_executable(launch_environment LaunchEnvironmentTests.cpp)
+    target_include_directories(launch_environment PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_compile_definitions(launch_environment PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_compile_options(launch_environment PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
+    target_link_libraries(launch_environment PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME launch_environment COMMAND launch_environment)
+endif()

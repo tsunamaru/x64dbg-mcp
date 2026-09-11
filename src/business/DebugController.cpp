@@ -1,4 +1,5 @@
 #include "DebugController.h"
+#include "LaunchEnvironment.h"
 #include "ThreadManager.h"
 #include "../core/Logger.h"
 #include "../core/Exceptions.h"
@@ -281,7 +282,19 @@ bool DebugController::Restart() {
 
 bool DebugController::Init(const std::string& path,
                            const std::string& arguments,
-                           const std::string& currentDir) {
+                           const std::string& currentDir,
+                           const nlohmann::json* environment,
+                           const nlohmann::json* environmentClearPrefixes) {
+    static std::mutex initMutex;
+    std::unique_lock<std::mutex> initLock(initMutex, std::try_to_lock);
+    if (!initLock.owns_lock()) {
+        throw MCPException("Another debug_init is in progress");
+    }
+    const auto changes = ParseEnvironmentChanges(environment ? *environment : nlohmann::json::object(),
+        environmentClearPrefixes ? *environmentClearPrefixes : nlohmann::json::array());
+    if ((environment || environmentClearPrefixes) && IsDebugging()) {
+        throw MCPException("Environment overrides require an idle debugger");
+    }
     std::string resolvedPath = path;
     if (resolvedPath.empty()) {
         resolvedPath = LoadLastDebuggedPath();
@@ -327,7 +340,28 @@ bool DebugController::Init(const std::string& path,
     }
 
     Logger::Debug("Starting debugger via: {}", command);
-    const bool success = ExecuteCommand(command);
+    ScopedEnvironment scope(changes);
+    if (!scope.Applied()) {
+        const bool restored = scope.Restore();
+        throw MCPException(restored ? "Cannot apply launch environment" :
+                           "Launch environment rollback failed; restart the debugger before launching again");
+    }
+    bool success = false;
+    try {
+        // x64dbg cmd-debug-control.cpp: cbDebugInit waits in dbgcreatedebugthread.
+        // debugger.cpp signals init->event after InitDebugW/CreateProcess returns, including startup failure.
+        // Never queue init here: restoring the parent environment before creation loses the overrides.
+        // Exclusive GUI/plugin launching is required while the temporary process-wide values are installed.
+        success = ExecuteCommandDirect(command) && IsDebugging();
+    } catch (...) {
+        if (!scope.Restore()) {
+            throw MCPException("Launch failed and environment restoration failed; restart the debugger");
+        }
+        throw;
+    }
+    if (!scope.Restore()) {
+        throw MCPException("Launch environment restoration failed; target creation may have succeeded");
+    }
     if (success) {
         CacheLastDebuggedPath(resolvedPath);
     }

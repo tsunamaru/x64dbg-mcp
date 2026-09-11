@@ -739,7 +739,7 @@ void MCPHttpServer::HandleSSE(SOCKET clientSocket, const std::string& origin) {
                 // 璺宠繃绌鸿
                 if (line.empty() || line == "\r") continue;
                 
-                Logger::Debug("SSE received: " + line);
+                    Logger::Debug("SSE message received ({} bytes)", line.size());
                 
                 // 瑙ｆ瀽骞跺鐞?JSON-RPC 璇锋眰
                 std::string method, requestId;
@@ -816,7 +816,7 @@ void MCPHttpServer::HandleSSE(SOCKET clientSocket, const std::string& origin) {
 
 void MCPHttpServer::HandlePostMessage(SOCKET clientSocket, const std::string& body,
                                       const std::string& origin) {
-    Logger::Debug("POST body received: " + body);
+    Logger::Debug("POST body received ({} bytes)", body.size());
 
     try {
         [[maybe_unused]] const auto parsed = json::parse(body);
@@ -985,7 +985,12 @@ std::string MCPHttpServer::HandleMCPMethod(const std::string& method, const std:
             }
             json arguments = params.value("arguments", json::object());
             
-            Logger::Info("Calling tool: {} with args: {}", toolName, arguments.dump());
+            // Launch environments may contain credentials. Never copy their values into the transport log.
+            if (toolName == "debug_init") {
+                Logger::Info("Calling tool: debug_init (arguments omitted)");
+            } else {
+                Logger::Info("Calling tool: {} with args: {}", toolName, arguments.dump());
+            }
             
             // 璋冪敤宸ュ叿
             MCPToolCallResult toolResult = CallMCPTool(toolName, arguments);
@@ -1495,7 +1500,7 @@ MCPHttpServer::MCPToolCallResult MCPHttpServer::CallMCPTool(const std::string& t
 // =============================================================================
 
 void MCPHttpServer::HandleStreamableHttpPost(SOCKET clientSocket, const std::string& body, const std::string& origin) {
-    Logger::Debug("[Streamable HTTP] POST body: " + body);
+    Logger::Debug("[Streamable HTTP] POST body received ({} bytes)", body.size());
 
     try {
         [[maybe_unused]] const auto parsed = nlohmann::json::parse(body);
