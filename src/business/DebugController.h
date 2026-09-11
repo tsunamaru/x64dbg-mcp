@@ -2,6 +2,7 @@
 #include <string>
 #include <cstdint>
 #include <mutex>
+#include <nlohmann/json_fwd.hpp>
 
 namespace MCP {
 
@@ -93,7 +94,9 @@ public:
      */
     bool Init(const std::string& path,
               const std::string& arguments = "",
-              const std::string& currentDir = "");
+              const std::string& currentDir = "",
+              const nlohmann::json* environment = nullptr,
+              const nlohmann::json* environmentClearPrefixes = nullptr);
 
     /**
      * @brief 附加到已运行的进程（LEProc 冷启 + 注入后的 MAIN_NoCD 等）

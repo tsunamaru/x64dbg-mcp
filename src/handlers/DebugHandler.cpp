@@ -192,11 +192,16 @@ json DebugHandler::Init(const json& params) {
         };
     }
 
-    bool success = controller.Init(path, arguments, currentDir);
+    const auto* environment = params.contains("environment") ? &params["environment"] : nullptr;
+    const auto* clearPrefixes = params.contains("environment_clear_prefixes") ? &params["environment_clear_prefixes"] : nullptr;
+    bool success = controller.Init(path, arguments, currentDir, environment, clearPrefixes);
 
     json result = {
         {"success", success},
-        {"path", path}
+        {"path", path},
+        {"queued_only", false},
+        {"environment_applied", (environment != nullptr || clearPrefixes != nullptr) && success},
+        {"environment_restored", true}
     };
 
     if (!arguments.empty()) {

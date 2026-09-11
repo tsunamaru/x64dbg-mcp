@@ -43,6 +43,28 @@ A Model Context Protocol (MCP) server implementation for x64dbg and x32dbg, enab
 - **Extensible**: Plugin architecture for custom methods, resources, and prompts
 
 
+### Per-launch environment
+
+`debug_init` accepts an optional `environment` object and `environment_clear_prefixes` array.
+String values set variables; `null` removes them. Prefix matching is case-insensitive, and explicit entries override prefix removals.
+The environment mode requires an idle debugger.
+The bridge applies temporary process-wide overrides, executes `init` synchronously, and restores the previous values after process creation.
+This follows Windows [child environment inheritance](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessw).
+Do not launch or change environment variables concurrently through the GUI or other plugins.
+The init mutex serializes bridge requests, not unrelated plugin activity.
+
+The result acknowledges creation, not the initial breakpoint. Poll `debug_get_state` for a valid pause before using the target.
+HTTP timeout does not cancel native initialization; do not retry an ambiguous launch automatically.
+Restoration completes when the native command returns, including after any startup dialog is resolved.
+Errors report failed application or restoration without logging environment values.
+Saved debugger command lines may override supplied arguments; verify the effective target arguments before resuming.
+
+```json
+{"name":"debug_init","arguments":{"path":"C:\\app\\app.exe","environment":{"LOG_DIR":"C:\\capture","OLD_FLAG":null},"environment_clear_prefixes":["APP_TRACE_"]}}
+```
+
+Validate both builds with `ctest --test-dir build_x86 -C Release` and `ctest --test-dir build_x64 -C Release`.
+
 ### Prerequisites
 
 - **Windows 10/11** (64-bit host; supports building both x64 and x86 plugins)
